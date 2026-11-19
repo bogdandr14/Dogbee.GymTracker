@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#121417">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Gym Tracker">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<title>Gym Tracker</title>
+<style>
+:root{--bg:#121417;--card:#1c2027;--card2:#262b34;--line:#323846;--ink:#f2f4f7;--mute:#9aa3b2;--acc:#ff7a1a;--acc2:#ffb27a;--ok:#4cc38a;--bad:#ff5d5d;color-scheme:dark}
+*{box-sizing:border-box;min-width:0;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+body{padding:env(safe-area-inset-top) 0 calc(84px + env(safe-area-inset-bottom));overflow-x:clip}
+header{padding:16px 16px 4px;display:flex;align-items:center;gap:10px}
+header h1{font-size:26px;margin:0;font-weight:800;letter-spacing:-.01em}
+main{padding:8px 16px 24px;max-width:720px;margin:0 auto}
+h2{font-size:19px;margin:22px 0 10px}
+small,.mute{color:var(--mute)}
+small{font-size:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;margin:10px 0}
+button,.btn{font:inherit;font-weight:650;color:var(--ink);background:var(--card2);border:1px solid var(--line);border-radius:14px;min-height:52px;padding:0 16px;cursor:pointer}
+button:active{transform:scale(.98)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--acc2);outline-offset:2px}
+.pri{background:var(--acc);border-color:var(--acc);color:#1a0d02}
+.danger{color:var(--bad)}
+.wide{width:100%}
+.icon{min-width:52px;padding:0;font-size:22px}
+input,select{font:inherit;font-size:17px;color:var(--ink);background:#0d0f12;border:1px solid var(--line);border-radius:12px;min-height:52px;padding:0 12px;width:100%}
+label{display:block;font-size:14px;color:var(--mute);margin:12px 0 6px}
+.row{display:flex;gap:10px;align-items:center}
+.row>.grow{flex:1}
+.picker{display:flex;justify-content:space-between;align-items:center;text-align:left;width:100%;min-height:60px}
+.picker span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chips{display:flex;gap:8px;overflow-x:auto;padding:4px 0 8px;scrollbar-width:none}
+.chips.wrap{flex-wrap:wrap;overflow:visible}
+.chip{flex:none;min-height:44px;border-radius:22px;padding:0 14px;font-size:15px;font-weight:600}
+.chip.on{background:var(--acc);border-color:var(--acc);color:#1a0d02}
+.set{display:grid;grid-template-columns:28px minmax(0,1fr) minmax(0,1fr) 44px;gap:8px;align-items:center;margin:8px 0}
+.set .n{color:var(--mute);font-weight:700;text-align:center}
+.step{display:grid;grid-template-columns:44px minmax(0,1fr) 44px;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#0d0f12}
+.step button{min-height:52px;border:0;border-radius:0;padding:0;font-size:22px;background:var(--card2)}
+.step input{border:0;border-radius:0;text-align:center;padding:0 2px;font-weight:700;font-size:19px}
+.step-l{font-size:12px;color:var(--mute);text-align:center;margin-top:2px}
+.list{display:flex;flex-direction:column;gap:8px}
+.item{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px 10px 10px 14px;min-height:60px}
+.item .txt{flex:1;cursor:pointer}
+.item b{display:block;font-weight:650}
+.item .side{text-align:right;white-space:nowrap}
+.item button{min-height:44px;min-width:44px;padding:0 10px;font-size:15px}
+.days{font-size:22px;font-weight:800;color:var(--acc2)}
+.pr{font-weight:800;color:var(--acc2);white-space:nowrap}
+.date-h{margin:18px 0 6px;font-size:14px;font-weight:700;color:var(--mute)}
+.empty{text-align:center;color:var(--mute);padding:28px 10px}
+.toggle{display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:6px 14px;min-height:56px;margin:8px 0}
+.toggle input{width:52px;min-height:30px;accent-color:var(--acc)}
+.fig{position:relative;height:200px;margin-top:8px}
+.fig svg{position:absolute;inset:0;width:100%;height:100%}
+nav{position:fixed;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(5,1fr);background:#0d0f12;border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom);z-index:5}
+nav button{border:0;border-radius:0;background:none;min-height:68px;font-size:13px;color:var(--mute);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:0}
+nav button svg{width:26px;height:26px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+nav button.on{color:var(--acc)}
+.sheet-bg{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:10;display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:var(--bg);border:1px solid var(--line);border-bottom:0;border-radius:20px 20px 0 0;width:100%;max-width:720px;max-height:92vh;overflow:auto;padding:16px 16px calc(20px + env(safe-area-inset-bottom))}
+.sheet h3{margin:4px 0 8px;font-size:20px}
+.btns{display:flex;gap:10px;margin-top:16px}
+.btns>*{flex:1}
+#toast{position:fixed;left:50%;bottom:calc(92px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--ink);color:#111;padding:12px 18px;border-radius:14px;font-weight:700;z-index:20;opacity:0;transition:opacity .2s;pointer-events:none;max-width:90vw;text-align:center}
+#toast.show{opacity:1}
+.grp-h{font-size:13px;font-weight:700;color:var(--mute);margin:14px 0 4px;text-transform:none}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<header><h1 id="title">Log</h1></header>
+<main id="view"></main>
+<nav id="nav">
+  <button data-nav="log" class="on"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Log</button>
+  <button data-nav="history"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg>History</button>
+  <button data-nav="muscles"><svg viewBox="0 0 24 24"><path d="M6 6v12M18 6v12M3 9v6M21 9v6M6 12h12"/></svg>Muscles</button>
+  <button data-nav="exercises"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Exercises</button>
+  <button data-nav="data"><svg viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M4 21h16"/></svg>Data</button>
+</nav>
+<div id="toast"></div>
+<script>
+{
+// ---------- Reference data (approved catalog) ----------
+const GROUPS=['Chest','Back','Traps','Lower back','Shoulders','Rotator cuff','Neck','Biceps','Triceps','Forearms','Quads','Hamstrings','Glutes','Adductors','Calves','Abs','Obliques','Hip flexors'];
+const MUSCLES={'pectoralis major':'Chest','upper pectoralis':'Chest','lower pectoralis':'Chest','latissimus dorsi':'Back','rhomboids':'Back','trapezius':'Traps','erector spinae':'Lower back','front deltoid':'Shoulders','lateral deltoid':'Shoulders','rear deltoid':'Shoulders','rotator cuff':'Rotator cuff','neck':'Neck','biceps':'Biceps','brachialis':'Biceps','triceps':'Triceps','forearms':'Forearms','forearm flexors':'Forearms','forearm extensors':'Forearms','quadriceps':'Quads','hamstrings':'Hamstrings','glutes':'Glutes','gluteus medius':'Glutes','adductors':'Adductors','calves':'Calves','soleus':'Calves','abs':'Abs','lower abs':'Abs','transverse abdominis':'Abs','obliques':'Obliques','hip flexors':'Hip flexors'};
+const FD='front deltoid',PM='pectoralis major',UP='upper pectoralis',LP='lower pectoralis',LAT='latissimus dorsi',ROW='rhomboids|trapezius|rear deltoid|biceps';
+const CAT=[
+['Bench press barbell horizontal','Barbell',PM,FD+'|triceps'],['Bench press barbell incline','Barbell',UP,FD+'|triceps'],['Bench press barbell decline','Barbell',LP,FD+'|triceps'],
+['Bench press dumbbell horizontal','Dumbbell',PM,FD+'|triceps'],['Bench press dumbbell incline','Dumbbell',UP,FD+'|triceps'],['Bench press dumbbell decline','Dumbbell',LP,FD+'|triceps'],
+['Chest press vertical','Machine',PM,FD+'|triceps'],['Chest press decline','Machine',LP,FD+'|triceps'],['Chest press wide','Machine',PM,FD+'|triceps'],
+['Chest flys machine horizontal','Machine',PM,FD+'|biceps'],['Chest flys machine incline','Machine',UP,FD],['Chest flys dumbbell horizontal','Dumbbell',PM,FD+'|biceps'],['Chest flys dumbbell incline','Dumbbell',UP,FD],
+['Chest dips (incline)','Bodyweight',LP,'triceps|'+FD],['Supine press','Dumbbell',PM,'triceps|'+FD],['Cable crossover','Cable',PM,FD],['Smith machine incline press','Smith machine',UP,FD+'|triceps'],
+['Pull-up','Bodyweight',LAT,'biceps|rhomboids|trapezius|rear deltoid'],['Chin-up','Bodyweight',LAT,'biceps|rhomboids|rear deltoid'],['Row barbell','Barbell',LAT,ROW],['Bent-over row dumbbell','Dumbbell',LAT,ROW],['One-arm dumbbell row','Dumbbell',LAT,ROW],
+['Pull down machine','Machine',LAT,'biceps|rhomboids'],['Wide grip pulldown machine','Machine',LAT,'biceps|rhomboids|trapezius|rear deltoid'],['Close grip pulldown machine','Machine',LAT,'biceps|rhomboids|rear deltoid'],['Reverse grip lat pulldown','Cable',LAT,'biceps|rhomboids|trapezius|rear deltoid'],
+['Seated cable rows','Cable',LAT,ROW],['Machine row','Machine','rhomboids',LAT+'|trapezius|rear deltoid|biceps'],['Seated row machine','Machine','rhomboids',LAT+'|trapezius|biceps'],['TRX row','TRX',LAT,ROW],['Dumbbell shrug','Dumbbell','trapezius','forearms'],
+['Assisted pull-up machine','Machine',LAT,'biceps|rhomboids'],['T-bar row','Machine',LAT,'rhomboids|trapezius|biceps'],
+['Roman chair back extension','Roman chair','erector spinae','glutes|hamstrings'],['Back extension machine','Machine','erector spinae','glutes|hamstrings'],
+['Overhead press','Barbell',FD,'lateral deltoid|triceps|'+UP],['Shoulder press (machine)','Machine',FD,'lateral deltoid|triceps'],['Shoulder press dumbbell','Dumbbell',FD,'lateral deltoid|triceps'],['Smith machine shoulder press','Smith machine',FD,'lateral deltoid|triceps'],['Arnold dumbbell press','Dumbbell',FD,'lateral deltoid|triceps|'+UP],
+['Side lateral raise dumbbell','Dumbbell','lateral deltoid',FD+'|trapezius'],['Side lateral raise cable','Cable','lateral deltoid',FD+'|trapezius'],['Machine lateral raise','Machine','lateral deltoid','trapezius'],
+['Upright row dumbbell','Dumbbell','lateral deltoid','trapezius|'+FD],['Upright row barbell','Barbell','lateral deltoid','trapezius|'+FD],['Front raise dumbbell','Dumbbell',FD,'lateral deltoid|'+UP],['Front raise cable','Cable',FD,'lateral deltoid|'+UP],
+['Face pull cable','Cable','rear deltoid','rhomboids|trapezius|rotator cuff'],['Rear delt fly cable','Cable','rear deltoid','rhomboids|trapezius'],['Rear delt fly machine','Machine','rear deltoid','rhomboids|trapezius'],['Rear delt raise dumbbell','Dumbbell','rear deltoid','rhomboids|trapezius'],['Bent-over rear delt raise dumbbell','Dumbbell','rear deltoid','rhomboids|trapezius'],['Bent-over lateral raise dumbbell','Dumbbell','rear deltoid','rhomboids|trapezius'],
+['Bicep curl','Dumbbell','biceps','forearms'],['Bicep curl machine','Machine','biceps','forearms'],['Biceps curl cable','Cable','biceps','forearms'],['Cable rope bicep curl','Cable','biceps','brachialis|forearms'],['Barbell curl','Barbell','biceps','forearms'],['EZ-bar curl','EZ bar','biceps','forearms'],
+['Hammer curl','Dumbbell','brachialis','biceps|forearms'],['Concentration curl','Dumbbell','biceps','brachialis'],['Drag curl dumbbell','Dumbbell','biceps','forearms'],['Drag curl barbell','Barbell','biceps','forearms'],['Preacher curl cable','Cable','biceps','brachialis'],['Preacher curl machine','Machine','biceps','brachialis'],['Preacher curl barbell','Barbell','biceps','brachialis'],['Spider curl','Dumbbell','biceps','brachialis'],
+['Tricep dips (vertical)','Bodyweight','triceps',FD+'|'+PM],['Bench dips','Bodyweight','triceps',FD+'|'+PM],['Triceps press machine','Machine','triceps',LP+'|'+FD],['Triceps extension machine','Machine','triceps',''],['Push-down cable','Cable','triceps',''],['One-arm triceps push-down cable','Cable','triceps',''],
+['Overhead triceps extension cable','Cable','triceps',''],['Overhead dumbbell triceps extension','Dumbbell','triceps',''],['One-arm overhead dumbbell triceps extension','Dumbbell','triceps',''],['Lying triceps extension barbell','Barbell','triceps',''],['Lying triceps extension dumbbell (vertical)','Dumbbell','triceps',''],['Lying triceps extension dumbbell (horizontal)','Dumbbell','triceps',''],['Tricep dumbbell kickback','Dumbbell','triceps','rear deltoid'],['TRX triceps extension','TRX','triceps','abs'],
+['Wrist curl','Dumbbell','forearm flexors',''],['Reverse wrist curl','Dumbbell','forearm extensors',''],
+['Leg press','Machine','quadriceps','glutes|hamstrings|adductors'],['Leg press smith machine','Smith machine','quadriceps','glutes|hamstrings'],['Leg extension','Machine','quadriceps',''],['Squat smith machine','Smith machine','quadriceps','glutes|adductors|hamstrings'],['Squat barbell','Barbell','quadriceps','glutes|adductors|hamstrings|erector spinae'],
+['Goblet squat','Dumbbell','quadriceps','glutes|adductors|abs'],['Hack squat','Machine','quadriceps','glutes|adductors'],['Dumbbell split squat','Dumbbell','quadriceps','glutes|hamstrings|adductors'],
+['Leg curl','Machine','hamstrings','calves'],['Lying leg curl','Machine','hamstrings','calves'],['Nordic hamstring curl','Bodyweight','hamstrings','glutes|calves'],['Romanian deadlift','Barbell','hamstrings','glutes|erector spinae'],
+['Barbell deadlift','Barbell','glutes','hamstrings|erector spinae|quadriceps|trapezius|forearms'],['Hip thrust','Barbell','glutes','hamstrings'],['Hip abductor','Machine','gluteus medius',''],['Hip adductor','Machine','adductors',''],
+['Glute kickback machine','Machine','glutes','hamstrings'],['Hip thrust machine','Machine','glutes','hamstrings'],['Cable pull-through','Cable','glutes','hamstrings|erector spinae'],['Calf raises','Machine','calves',''],['Seated calf raise machine','Machine','soleus',''],
+['Abs crunch machine','Machine','abs','obliques'],['Sit-up','Bodyweight','abs','obliques|hip flexors'],['Decline sit-ups','Bench','abs','obliques|hip flexors'],['GHD sit up','GHD','abs','hip flexors|quadriceps'],['V-ups','Bodyweight','abs','obliques|hip flexors'],['Crunches dumbbell','Dumbbell','abs','obliques'],
+['Hanging leg raise','Bodyweight','lower abs','obliques|hip flexors|forearms'],['Lying leg raise','Bodyweight','lower abs','obliques|hip flexors'],['Roman chair leg raise','Roman chair','lower abs','obliques|hip flexors'],['Roman chair lateral leg raise','Roman chair','obliques','lower abs|hip flexors'],
+['Russian twist','Bodyweight','obliques','abs|transverse abdominis|hip flexors'],['Cable twist','Cable','obliques','abs'],['Side bend','Dumbbell','obliques','erector spinae'],['Rotary torso machine','Machine','obliques','abs']
+];
+
+// ---------- State & storage ----------
+const KEY='gymtracker.v1';
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const fresh=()=>({v:1,muscles:{...MUSCLES},exercises:CAT.map(([name,eq,main,sec],i)=>({id:'c'+i,name,eq,main,sec:sec?sec.split('|'):[]})),entries:[]});
+function valid(s){return s&&typeof s==='object'&&Array.isArray(s.exercises)&&Array.isArray(s.entries)&&s.muscles&&typeof s.muscles==='object'}
+function load(){try{const r=localStorage.getItem(KEY);if(r){const s=JSON.parse(r);if(valid(s))return s}}catch(e){}return fresh()}
+let S=load();
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S));return true}catch(e){toast('⚠ Could not save on this device');return false}}
+try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
+
+// ---------- Helpers ----------
+const pad=n=>String(n).padStart(2,'0');
+const today=()=>{const d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())};
+const toDate=s=>{const[y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d)};
+const daysSince=s=>Math.round((toDate(today())-toDate(s))/864e5);
+const fmtDate=s=>toDate(s).toLocaleDateString(undefined,{weekday:'short',day:'numeric',month:'short',year:toDate(s).getFullYear()===new Date().getFullYear()?undefined:'numeric'});
+const fmtW=w=>+w?(+w)+' kg':'BW';
+const fmtSet=s=>fmtW(s[0])+' × '+s[1];
+const cmpSet=(a,b)=>(a[0]-b[0])||(a[1]-b[1]);
+const exById=id=>S.exercises.find(e=>e.id===id);
+const groupOf=m=>S.muscles[m]||'Other';
+const groupsAll=()=>[...GROUPS,...new Set(Object.values(S.muscles).filter(g=>!GROUPS.includes(g)))];
+const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
+const entriesOf=id=>S.entries.filter(e=>e.ex===id).sort((a,b)=>b.date.localeCompare(a.date)||b.ts-a.ts);
+function prOf(id,excludeEntry){let best=null,date=null;for(const e of S.entries){if(e.ex!==id||e.id===excludeEntry)continue;for(const s of e.sets){if(!best||cmpSet(s,best)>0){best=s;date=e.date}}}return best?{set:best,date}:null}
+function lastOf(id){return entriesOf(id)[0]||null}
+const sortByName=a=>a.slice().sort((x,y)=>x.name.localeCompare(y.name));
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>t.classList.remove('show'),2400)}
+
+// ---------- Sheets & dialogs ----------
+const stack=[];
+function openSheet(html,mount){const bg=document.createElement('div');bg.className='sheet-bg';bg.innerHTML='<div class="sheet" role="dialog" aria-modal="true">'+html+'</div>';bg.addEventListener('click',e=>{if(e.target===bg)closeSheet()});document.body.appendChild(bg);stack.push(bg);document.body.style.overflow='hidden';mount&&mount(bg.firstChild);return bg.firstChild}
+function closeSheet(){const bg=stack.pop();bg&&bg.remove();if(!stack.length)document.body.style.overflow=''}
+function ask(msg,ok='Delete',danger=true){return new Promise(res=>{openSheet(`<h3>${esc(msg)}</h3><div class="btns"><button data-x="n">Cancel</button><button data-x="y" class="${danger?'pri':'pri'}">${esc(ok)}</button></div>`,el=>{el.querySelector('[data-x=n]').onclick=()=>{closeSheet();res(false)};el.querySelector('[data-x=y]').onclick=()=>{closeSheet();res(true)}})})}
+
+// Exercise picker
+function pickExercise(cb){
+  let q='',g='';
+  openSheet(`<h3>Choose exercise</h3><input id="pq" type="search" placeholder="Search exercises" autocomplete="off"><div class="chips" id="pg"></div><div class="list" id="pl"></div>`,el=>{
+    const gs=groupsAll().filter(x=>S.exercises.some(e=>groupOf(e.main)===x));
+    const chips=()=>{el.querySelector('#pg').innerHTML=['',...gs].map(x=>`<button class="chip ${x===g?'on':''}" data-g="${esc(x)}">${esc(x||'All')}</button>`).join('')};
+    const list=()=>{
+      const words=q.toLowerCase().split(/\s+/).filter(Boolean);
+      let xs=S.exercises.filter(e=>(!g||groupOf(e.main)===g)&&words.every(w=>(e.name+' '+e.eq+' '+e.main).toLowerCase().includes(w)));
+      const last=new Map(xs.map(e=>[e.id,lastOf(e.id)]));
+      xs.sort((a,b)=>{const la=last.get(a.id),lb=last.get(b.id);if(la&&lb)return lb.date.localeCompare(la.date)||lb.ts-la.ts;if(la||lb)return la?-1:1;return a.name.localeCompare(b.name)});
+      el.querySelector('#pl').innerHTML=xs.length?xs.map(e=>{const l=last.get(e.id);return `<div class="item" data-pick="${e.id}"><div class="txt"><b>${esc(e.name)}</b><small>${esc(cap(e.main))} · ${esc(e.eq)}</small></div><div class="side"><small>${l?(daysSince(l.date)===0?'today':daysSince(l.date)+'d ago'):''}</small></div></div>`}).join(''):'<div class="empty">No exercise found. Add it in the Exercises tab.</div>';
+    };
+    chips();list();
+    el.querySelector('#pq').oninput=e=>{q=e.target.value;list()};
+    el.querySelector('#pg').onclick=e=>{const b=e.target.closest('[data-g]');if(b){g=b.dataset.g;chips();list()}};
+    el.querySelector('#pl').onclick=e=>{const it=e.target.closest('[data-pick]');if(it){closeSheet();cb(it.dataset.pick)}};
+  });
+}
+
+// Sets editor
+function setsEditor(box,sets){
+  const draw=()=>{box.innerHTML=sets.map((s,i)=>`<div class="set" data-i="${i}"><div class="n">${i+1}</div>
+    <div><div class="step"><button type="button" data-d="w-">−</button><input inputmode="decimal" data-f="w" value="${s[0]}" aria-label="Weight set ${i+1}"><button type="button" data-d="w+">+</button></div><div class="step-l">kg (0 = bodyweight)</div></div>
+    <div><div class="step"><button type="button" data-d="r-">−</button><input inputmode="numeric" data-f="r" value="${s[1]}" aria-label="Reps set ${i+1}"><button type="button" data-d="r+">+</button></div><div class="step-l">reps</div></div>
+    <button type="button" class="icon" data-rm aria-label="Remove set" ${sets.length<2?'disabled style="opacity:.3"':''}>×</button></div>`).join('')+`<button type="button" class="wide" data-add style="margin-top:4px">+ Add set</button>`};
+  box.oninput=e=>{const f=e.target.dataset.f;if(!f)return;const i=+e.target.closest('.set').dataset.i;const v=parseFloat(String(e.target.value).replace(',','.'));sets[i][f==='w'?0:1]=isNaN(v)?0:v};
+  box.onclick=e=>{const b=e.target.closest('button');if(!b)return;
+    if(b.hasAttribute('data-add')){const l=sets[sets.length-1]||[0,10];sets.push([l[0],l[1]]);draw();return}
+    const i=+b.closest('.set')?.dataset.i;
+    if(b.hasAttribute('data-rm')){if(sets.length>1){sets.splice(i,1);draw()}return}
+    const d=b.dataset.d;if(d){const k=d[0]==='w'?0:1;sets[i][k]=Math.max(0,Math.round((sets[i][k]+(d[1]==='+'?1:-1))*100)/100);draw()}};
+  draw();
+}
+const cleanSets=sets=>sets.map(([w,r])=>[Math.max(0,+w||0),Math.max(0,Math.round(+r||0))]).filter(s=>s[1]>0);
+function prCheck(exId,entryId,sets){const old=prOf(exId,entryId);const top=sets.slice().sort(cmpSet).pop();if(top&&(!old||cmpSet(top,old.set)>0))toast('🏆 New PR: '+fmtSet(top));}
+
+// Entry editing
+function editEntry(id){
+  const en=S.entries.find(e=>e.id===id);if(!en)return;
+  const d={date:en.date,ex:en.ex,sets:en.sets.map(s=>s.slice())};
+  openSheet(`<h3>Edit entry</h3><label>Date</label><input type="date" id="ed" value="${en.date}" max="${today()}"><label>Exercise</label><button class="picker" id="ee"></button><label>Sets</label><div id="es"></div><div class="btns"><button id="edel" class="danger">Delete</button><button id="esave" class="pri">Save</button></div><button class="wide" style="margin-top:10px" id="ecancel">Cancel</button>`,el=>{
+    const showEx=()=>{el.querySelector('#ee').innerHTML=`<span>${esc(exById(d.ex)?.name||'?')}</span><span class="mute">›</span>`};showEx();
+    el.querySelector('#ee').onclick=()=>pickExercise(x=>{d.ex=x;showEx()});
+    setsEditor(el.querySelector('#es'),d.sets);
+    el.querySelector('#ecancel').onclick=closeSheet;
+    el.querySelector('#edel').onclick=async()=>{if(await ask('Delete this entry?')){S.entries=S.entries.filter(e=>e.id!==id);save();closeSheet();render();toast('Entry deleted')}};
+    el.querySelector('#esave').onclick=()=>{const sets=cleanSets(d.sets);if(!sets.length){toast('Enter reps for at least one set');return}
+      const dt=el.querySelector('#ed').value||en.date;prCheck(d.ex,id,sets);Object.assign(en,{date:dt,ex:d.ex,sets});save();closeSheet();render()};
+  });
+}
+const entryRow=(e,showName=true)=>`<div class="item"><div class="txt" data-edit="${e.id}"><b>${esc(showName?(exById(e.ex)?.name||'Deleted exercise'):fmtDate(e.date))}</b><small>${e.sets.map(fmtSet).join(' · ')}</small></div><button data-edit="${e.id}" aria-label="Edit">Edit</button></div>`;
+
+// ---------- Views ----------
+const L={date:today(),ex:null,sets:[[0,10]]};
+const H={ex:null};
+const M={group:'Chest',muscle:'',sec:false};
+let XQ='';
+let current='log';
+
+function viewLog(v){
+  const ex=L.ex&&exById(L.ex);
+  const last=ex&&lastOf(ex.id),pr=ex&&prOf(ex.id);
+  const day=S.entries.filter(e=>e.date===L.date).sort((a,b)=>a.ts-b.ts);
+  v.innerHTML=`<label for="ld">Date</label><input type="date" id="ld" value="${L.date}" max="${today()}">
+  <label>Exercise</label><button class="picker" id="lex"><span>${ex?esc(ex.name):'Tap to choose an exercise'}</span><span class="mute">›</span></button>
+  ${ex?`<div class="card"><small>${esc(cap(ex.main))} · ${esc(ex.eq)}${ex.sec.length?' · also '+esc(ex.sec.join(', ')):''}</small>
+    <div class="row" style="margin-top:8px;justify-content:space-between"><div><small>Last time</small><div>${last?fmtDate(last.date)+': '+last.sets.map(fmtSet).join(', '):'—'}</div></div><div style="text-align:right"><small>PR</small><div class="pr">${pr?fmtSet(pr.set):'—'}</div></div></div></div>
+  <div id="lsets"></div><button class="pri wide" id="lsave" style="margin-top:14px">Save</button>`:''}
+  <h2>${L.date===today()?'Today':fmtDate(L.date)} <small>(${day.length})</small></h2>
+  <div class="list">${day.map(e=>entryRow(e)).join('')||'<div class="empty">Nothing logged for this day yet.</div>'}</div>`;
+  v.querySelector('#ld').onchange=e=>{L.date=e.target.value||today();render()};
+  v.querySelector('#lex').onclick=()=>pickExercise(id=>{L.ex=id;const l=lastOf(id);L.sets=l?[l.sets[0].slice()]:[[0,10]];render()});
+  if(ex){setsEditor(v.querySelector('#lsets'),L.sets);
+    v.querySelector('#lsave').onclick=()=>{const sets=cleanSets(L.sets);if(!sets.length){toast('Enter reps for at least one set');return}
+      prCheck(ex.id,null,sets);S.entries.push({id:uid(),ex:ex.id,date:L.date,ts:Date.now(),sets});if(save()){if(!$('#toast').classList.contains('show'))toast('Saved');L.ex=null;L.sets=[[0,10]];render()}}}
+}
+
+function chart(box,entries){
+  const pts=entries.slice().reverse().map(e=>{const t=e.sets.slice().sort(cmpSet).pop();return{d:e.date,w:t[0],r:t[1]}});
+  const useReps=pts.every(p=>!p.w);const val=p=>useReps?p.r:p.w;
+  const draw=()=>{const svg=box.querySelector('svg');const W=box.clientWidth,Hh=box.clientHeight;if(!W)return;
+    const pl=44,pr=12,pt=26,pb=26;const vs=pts.map(val);let lo=Math.min(...vs),hi=Math.max(...vs);if(lo===hi){lo-=1;hi+=1}
+    const x=i=>pts.length<2?(pl+(W-pl-pr)/2):pl+i*(W-pl-pr)/(pts.length-1),y=v=>pt+(hi-v)*(Hh-pt-pb)/(hi-lo);
+    const line=pts.map((p,i)=>`${x(i).toFixed(1)},${y(val(p)).toFixed(1)}`).join(' ');
+    const u=useReps?' reps':' kg';
+    svg.innerHTML=`<line x1="${pl}" x2="${W-pr}" y1="${y(hi)}" y2="${y(hi)}" stroke="#323846"/><line x1="${pl}" x2="${W-pr}" y1="${y(lo)}" y2="${y(lo)}" stroke="#323846"/>
+    <text x="${pl-6}" y="${y(hi)+4}" fill="#9aa3b2" font-size="12" text-anchor="end">${+hi.toFixed(1)}</text><text x="${pl-6}" y="${y(lo)+4}" fill="#9aa3b2" font-size="12" text-anchor="end">${+lo.toFixed(1)}</text>
+    <polyline points="${line}" fill="none" stroke="#ff7a1a" stroke-width="3" stroke-linejoin="round"/>
+    ${pts.map((p,i)=>`<circle cx="${x(i)}" cy="${y(val(p))}" r="4" fill="#ffb27a"><title>${p.d}: ${val(p)}${u}</title></circle>`).join('')}
+    <text x="${pl}" y="${Hh-6}" fill="#9aa3b2" font-size="12">${pts[0].d.slice(5)}</text><text x="${W-pr}" y="${Hh-6}" fill="#9aa3b2" font-size="12" text-anchor="end">${pts[pts.length-1].d.slice(5)}</text>
+    <text x="${W-pr}" y="12" fill="#9aa3b2" font-size="12" text-anchor="end">top set${u}</text>`};
+  const ro=new ResizeObserver(draw);ro.observe(box);draw();
+}
+
+function viewHistory(v){
+  const ex=H.ex&&exById(H.ex);
+  let html=`<div class="row"><button class="picker grow" id="hex"><span>${ex?esc(ex.name):'All exercises'}</span><span class="mute">›</span></button>${ex?'<button class="icon" id="hclr" aria-label="Show all">×</button>':''}</div>`;
+  if(ex){const es=entriesOf(ex.id),pr=prOf(ex.id);
+    html+=`<div class="card"><div class="row" style="justify-content:space-between"><div><small>Personal record</small><div class="pr" style="font-size:22px">${pr?fmtSet(pr.set):'—'}</div><small>${pr?fmtDate(pr.date):''}</small></div><div style="text-align:right"><small>Sessions</small><div style="font-size:22px;font-weight:800">${es.length}</div></div></div>${es.length>1?'<div class="fig" id="hfig"><svg></svg></div>':''}</div>
+    <div class="list">${es.map(e=>entryRow(e,false)).join('')||'<div class="empty">No entries yet for this exercise.</div>'}</div>`;
+    v.innerHTML=html;if(es.length>1)chart(v.querySelector('#hfig'),es);
+  }else{const es=S.entries.slice().sort((a,b)=>b.date.localeCompare(a.date)||b.ts-a.ts);let cur='',n=0;
+    for(const e of es){if(e.date!==cur){if(++n>40)break;cur=e.date;html+=`<div class="date-h">${fmtDate(e.date)}</div>`}html+=entryRow(e)}
+    if(!es.length)html+='<div class="empty">Your workouts will appear here once you log them.</div>';
+    v.innerHTML=html;}
+  v.querySelector('#hex').onclick=()=>pickExercise(id=>{H.ex=id;render()});
+  const c=v.querySelector('#hclr');if(c)c.onclick=()=>{H.ex=null;render()};
+}
+
+function viewMuscles(v){
+  const gs=groupsAll();
+  const ms=Object.keys(S.muscles).filter(m=>S.muscles[m]===M.group).sort();
+  if(M.muscle&&!ms.includes(M.muscle))M.muscle='';
+  const match=e=>M.muscle?(e.main===M.muscle||(M.sec&&e.sec.includes(M.muscle))):(groupOf(e.main)===M.group||(M.sec&&e.sec.some(m=>groupOf(m)===M.group)));
+  const xs=sortByName(S.exercises.filter(match));
+  const done=xs.map(e=>({e,l:lastOf(e.id)})).filter(o=>o.l).sort((a,b)=>daysSince(b.l.date)-daysSince(a.l.date)||a.e.name.localeCompare(b.e.name));
+  v.innerHTML=`<label>Muscle group</label><div class="chips">${gs.map(g=>`<button class="chip ${g===M.group?'on':''}" data-mg="${esc(g)}">${esc(g)}</button>`).join('')}</div>
+  ${ms.length>1?`<label for="mm">Specific muscle</label><select id="mm"><option value="">All of ${esc(M.group)}</option>${ms.map(m=>`<option ${m===M.muscle?'selected':''} value="${esc(m)}">${esc(cap(m))}</option>`).join('')}</select>`:''}
+  <label class="toggle"><span>Include exercises where it's a secondary muscle</span><input type="checkbox" id="msec" ${M.sec?'checked':''}></label>
+  <h2>Not done recently</h2><small>Longest since last done first. Exercises never done are left out.</small>
+  <div class="list" style="margin-top:8px">${done.map(({e,l})=>{const d=daysSince(l.date);return `<div class="item"><div class="txt" data-hist="${e.id}"><b>${esc(e.name)}</b><small>${esc(e.eq)} · last ${l.sets.map(fmtSet).join(', ')}</small></div><div class="side"><div class="days">${d}</div><small>${d===1?'day':'days'} ago</small></div></div>`}).join('')||'<div class="empty">None of these exercises have been logged yet.</div>'}</div>
+  <h2>Personal records</h2>
+  <div class="list">${xs.map(e=>{const p=prOf(e.id);return `<div class="item"><div class="txt" data-hist="${e.id}"><b>${esc(e.name)}</b><small>${esc(cap(e.main))}${p?' · '+fmtDate(p.date):''}</small></div><div class="side ${p?'pr':'mute'}">${p?fmtSet(p.set):'—'}</div></div>`}).join('')||'<div class="empty">No exercises for this muscle.</div>'}</div>`;
+  v.querySelector('.chips').onclick=e=>{const b=e.target.closest('[data-mg]');if(b){M.group=b.dataset.mg;M.muscle='';render()}};
+  const on=v.querySelector('.chips .chip.on');if(on){const c=on.parentNode;c.scrollLeft=on.offsetLeft-c.clientWidth/2+on.clientWidth/2}
+  const mm=v.querySelector('#mm');if(mm)mm.onchange=e=>{M.muscle=e.target.value;render()};
+  v.querySelector('#msec').onchange=e=>{M.sec=e.target.checked;render()};
+}
+
+function editExercise(id){
+  const ex=id?exById(id):null;
+  const d={name:ex?.name||'',eq:ex?.eq||'Machine',main:ex?.main||'',sec:ex?[...ex.sec]:[]};
+  openSheet(`<h3>${ex?'Edit exercise':'New exercise'}</h3><label for="xn">Name</label><input id="xn" value="${esc(d.name)}" autocomplete="off">
+  <label for="xe">Equipment</label><input id="xe" list="xel" value="${esc(d.eq)}"><datalist id="xel">${[...new Set(S.exercises.map(e=>e.eq))].sort().map(q=>`<option value="${esc(q)}">`).join('')}</datalist>
+  <label for="xm">Main muscle</label><select id="xm"></select><label>Secondary muscles</label><div id="xs"></div>
+  <details style="margin-top:12px"><summary class="mute" style="min-height:44px;display:flex;align-items:center">+ Add a new muscle</summary><div class="row" style="margin-top:6px"><input id="nm" placeholder="Muscle name" class="grow"><select id="ng" style="width:42%">${groupsAll().map(g=>`<option>${esc(g)}</option>`).join('')}</select></div><button class="wide" id="nmadd" style="margin-top:8px">Add muscle</button></details>
+  <div class="btns">${ex?'<button id="xdel" class="danger">Delete</button>':''}<button id="xsave" class="pri">Save</button></div><button class="wide" style="margin-top:10px" id="xcancel">Cancel</button>`,el=>{
+    const byGroup=()=>{const o={};for(const[m,g]of Object.entries(S.muscles))(o[g]=o[g]||[]).push(m);return groupsAll().filter(g=>o[g]).map(g=>[g,o[g].sort()])};
+    const drawMain=()=>{el.querySelector('#xm').innerHTML='<option value="">Choose…</option>'+byGroup().map(([g,ms])=>`<optgroup label="${esc(g)}">${ms.map(m=>`<option value="${esc(m)}" ${m===d.main?'selected':''}>${esc(cap(m))}</option>`).join('')}</optgroup>`).join('')};
+    const drawSec=()=>{el.querySelector('#xs').innerHTML=byGroup().map(([g,ms])=>{const opts=ms.filter(m=>m!==d.main);return opts.length?`<div class="grp-h">${esc(g)}</div><div class="chips wrap">${opts.map(m=>`<button type="button" class="chip ${d.sec.includes(m)?'on':''}" data-m="${esc(m)}">${esc(cap(m))}</button>`).join('')}</div>`:''}).join('')};
+    drawMain();drawSec();
+    el.querySelector('#xm').onchange=e=>{d.main=e.target.value;d.sec=d.sec.filter(m=>m!==d.main);drawSec()};
+    el.querySelector('#xs').onclick=e=>{const b=e.target.closest('[data-m]');if(!b)return;const m=b.dataset.m;d.sec=d.sec.includes(m)?d.sec.filter(x=>x!==m):[...d.sec,m];drawSec()};
+    el.querySelector('#nmadd').onclick=()=>{const m=el.querySelector('#nm').value.trim().toLowerCase();if(!m){toast('Type a muscle name');return}if(S.muscles[m]){toast('That muscle already exists');return}S.muscles[m]=el.querySelector('#ng').value;save();el.querySelector('#nm').value='';drawMain();drawSec();toast('Muscle added')};
+    el.querySelector('#xcancel').onclick=closeSheet;
+    el.querySelector('#xsave').onclick=()=>{const name=el.querySelector('#xn').value.trim(),eq=el.querySelector('#xe').value.trim()||'Other';
+      if(!name){toast('Name is required');return}if(!d.main){toast('Choose the main muscle');return}
+      if(S.exercises.some(e=>e.id!==id&&e.name.toLowerCase()===name.toLowerCase())){toast('An exercise with that name exists');return}
+      if(ex)Object.assign(ex,{name,eq,main:d.main,sec:d.sec});else S.exercises.push({id:uid(),name,eq,main:d.main,sec:d.sec});
+      save();closeSheet();render();toast('Exercise saved')};
+    const del=el.querySelector('#xdel');if(del)del.onclick=async()=>{const n=S.entries.filter(e=>e.ex===id).length;
+      if(await ask(n?`Delete "${ex.name}" and its ${n} logged ${n===1?'entry':'entries'}?`:`Delete "${ex.name}"?`)){S.exercises=S.exercises.filter(e=>e.id!==id);S.entries=S.entries.filter(e=>e.ex!==id);if(L.ex===id)L.ex=null;if(H.ex===id)H.ex=null;save();closeSheet();render();toast('Exercise deleted')}};
+  });
+}
+
+function viewExercises(v){
+  const words=XQ.toLowerCase().split(/\s+/).filter(Boolean);
+  const xs=sortByName(S.exercises.filter(e=>words.every(w=>(e.name+' '+e.eq+' '+e.main+' '+e.sec.join(' ')).toLowerCase().includes(w))));
+  const by={};for(const e of xs)(by[groupOf(e.main)]=by[groupOf(e.main)]||[]).push(e);
+  v.innerHTML=`<button class="pri wide" id="xnew">+ New exercise</button><input type="search" id="xq" placeholder="Search ${S.exercises.length} exercises" value="${esc(XQ)}" style="margin-top:12px">
+  <div id="xlist">${[...groupsAll(),'Other'].filter(g=>by[g]).map(g=>`<div class="date-h">${esc(g)} (${by[g].length})</div><div class="list">${by[g].map(e=>`<div class="item"><div class="txt" data-ex="${e.id}"><b>${esc(e.name)}</b><small>${esc(cap(e.main))} · ${esc(e.eq)}${e.sec.length?' · '+esc(e.sec.join(', ')):''}</small></div></div>`).join('')}</div>`).join('')||'<div class="empty">No match.</div>'}</div>`;
+  v.querySelector('#xnew').onclick=()=>editExercise(null);
+  const q=v.querySelector('#xq');q.oninput=e=>{XQ=e.target.value;const pos=q.selectionStart;render();const n=$('#xq');n.focus();n.setSelectionRange(pos,pos)};
+}
+
+function download(name,text,type){const blob=new Blob([text],{type});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000)}
+async function share(name,text,type){try{const f=new File([text],name,{type});if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],title:name});return}}catch(e){if(e.name==='AbortError')return}download(name,text,type)}
+const csvCell=s=>{s=String(s??'');return /[",\n;]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s};
+function buildCSV(){const rows=[['date','exercise','equipment','set','weight_kg','reps','main_muscle','main_group','secondary_muscles']];
+  for(const e of S.entries.slice().sort((a,b)=>a.date.localeCompare(b.date)||a.ts-b.ts)){const x=exById(e.ex)||{name:'?',eq:'',main:'',sec:[]};e.sets.forEach((s,i)=>rows.push([e.date,x.name,x.eq,i+1,s[0],s[1],x.main,groupOf(x.main),x.sec.join(', ')]))}
+  return '﻿'+rows.map(r=>r.map(csvCell).join(',')).join('\r\n')}
+const buildJSON=()=>JSON.stringify({...S,exportedAt:new Date().toISOString(),app:'gym-tracker'},null,1);
+
+function viewData(v){
+  const sets=S.entries.reduce((n,e)=>n+e.sets.length,0);
+  const first=S.entries.reduce((m,e)=>!m||e.date<m?e.date:m,'');
+  v.innerHTML=`<div class="card"><div class="row" style="justify-content:space-around;text-align:center"><div><div style="font-size:24px;font-weight:800">${S.entries.length}</div><small>entries</small></div><div><div style="font-size:24px;font-weight:800">${sets}</div><small>sets</small></div><div><div style="font-size:24px;font-weight:800">${S.exercises.length}</div><small>exercises</small></div></div>${first?`<small style="display:block;text-align:center;margin-top:8px">Logging since ${fmtDate(first)}</small>`:''}</div>
+  <h2>Export</h2><small>Your data lives only on this phone. Export regularly as a backup.</small>
+  <div class="list" style="margin-top:10px"><button class="pri" id="dj">Backup (JSON) – for another phone</button><button id="dc">Log as CSV – opens in Excel</button></div>
+  <h2>Import</h2><small>Load a JSON backup. This replaces everything currently on this device.</small>
+  <label class="btn" style="display:flex;align-items:center;justify-content:center;margin-top:10px;color:var(--ink);font-size:17px">Choose backup file…<input type="file" id="di" accept=".json,application/json" hidden></label>
+  <h2>Muscle groups</h2><small>${groupsAll().join(' · ')}</small>`;
+  const stamp=today();
+  v.querySelector('#dj').onclick=()=>share(`gym-tracker-backup-${stamp}.json`,buildJSON(),'application/json');
+  v.querySelector('#dc').onclick=()=>{if(!S.entries.length){toast('Nothing logged yet');return}share(`gym-tracker-log-${stamp}.csv`,buildCSV(),'text/csv')};
+  v.querySelector('#di').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;
+    let obj;try{obj=JSON.parse(await f.text())}catch(err){toast('That file is not a valid backup');return}
+    if(!valid(obj)){toast('That file is not a Gym Tracker backup');return}
+    if(await ask(`Replace all data with this backup (${obj.entries.length} entries, ${obj.exercises.length} exercises)?`,'Replace')){const{exportedAt,app,...rest}=obj;S=rest;save();L.ex=null;H.ex=null;render();toast('Backup imported')}};
+}
+
+// ---------- Router ----------
+const VIEWS={log:['Log',viewLog],history:['History',viewHistory],muscles:['Muscles',viewMuscles],exercises:['Exercises',viewExercises],data:['Data',viewData]};
+function render(){const[t,f]=VIEWS[current];$('#title').textContent=t;document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.nav===current));f($('#view'))}
+function go(n){current=VIEWS[n]?n:'log';if(location.hash!=='#'+current)history.replaceState(null,'','#'+current);while(stack.length)closeSheet();render();scrollTo(0,0)}
+$('#nav').onclick=e=>{const b=e.target.closest('[data-nav]');if(b)go(b.dataset.nav)};
+document.addEventListener('click',e=>{const ed=e.target.closest('[data-edit]');if(ed){editEntry(ed.dataset.edit);return}
+  const h=e.target.closest('[data-hist]');if(h){H.ex=h.dataset.hist;go('history');return}
+  const x=e.target.closest('[data-ex]');if(x)editExercise(x.dataset.ex)});
+addEventListener('hashchange',()=>go(location.hash.slice(1)));
+addEventListener('keydown',e=>{if(e.key==='Escape'&&stack.length)closeSheet()});
+go(location.hash.slice(1)||'log');
+if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js').catch(()=>{});
+}
+</script>
+</body>
+</html>
