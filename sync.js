@@ -36,7 +36,7 @@ async function start() {
 
   function emitData() {
     if (!data.exercises || !data.entries || !data.muscles) return;
-    emit('data', { fromCache: Object.values(cached).some(Boolean), data: { muscles: data.muscles, exercises: data.exercises, entries: data.entries } });
+    emit('data', { fromCache: Object.values(cached).some(Boolean), data: { catVer: data.catVer, muscles: data.muscles, exercises: data.exercises, entries: data.entries } });
   }
 
   async function ensureSeeded(u) {
@@ -48,7 +48,7 @@ async function start() {
       const d = window.GymDefaults();
       const b = F.writeBatch(db);
       b.set(F.doc(db, 'users', u), { createdAt: Date.now() });
-      b.set(F.doc(db, 'users', u, 'meta', 'muscles'), { map: d.muscles });
+      b.set(F.doc(db, 'users', u, 'meta', 'muscles'), { map: d.muscles, catVer: d.catVer || 1 });
       for (const x of d.exercises) b.set(F.doc(db, 'users', u, 'exercises', x.id), { name: x.name, eq: x.eq, main: x.main, sec: x.sec });
       await b.commit();
     } catch (e) {
@@ -69,12 +69,13 @@ async function start() {
       pending.en = s.metadata.hasPendingWrites; cached.en = s.metadata.fromCache; error = ''; status(); emitData();
     }, fail));
     unsubs.push(F.onSnapshot(F.doc(db, 'users', u, 'meta', 'muscles'), opt, s => {
-      data.muscles = (s.exists() && s.data().map) || {};
+      data.muscles = (s.exists() && s.data().map) || {}; data.catVer = (s.exists() && s.data().catVer) || 1; cached.mu = s.metadata.fromCache;
       pending.mu = s.metadata.hasPendingWrites; status(); emitData();
     }, fail));
   }
 
   const entryDoc = e => ({ ex: e.ex, date: e.date, ts: e.ts || Date.now(), sets: e.sets.map(([w, r]) => ({ w: +w || 0, r: +r || 0 })) });
+  const metaDoc = p => ({ map: p.map || p, catVer: p.catVer || 1 });
   const exDoc = x => ({ name: x.name, eq: x.eq, main: x.main, sec: x.sec || [] });
 
   // Writes are not awaited: offline they are queued by Firestore and sent later.
@@ -83,7 +84,7 @@ async function start() {
     if (type === 'putEntry') F.setDoc(ref('entries', p.id), entryDoc(p)).catch(fail);
     else if (type === 'delEntry') F.deleteDoc(ref('entries', p)).catch(fail);
     else if (type === 'putExercise') F.setDoc(ref('exercises', p.id), exDoc(p)).catch(fail);
-    else if (type === 'putMuscles') F.setDoc(ref('meta', 'muscles'), { map: p }).catch(fail);
+    else if (type === 'putMuscles') F.setDoc(ref('meta', 'muscles'), metaDoc(p)).catch(fail);
     else if (type === 'delExercise') {
       const ids = [p.id, ...(p.entries || [])];
       for (let i = 0; i < ids.length; i += 450) {
@@ -93,7 +94,7 @@ async function start() {
       }
     } else if (type === 'bulk') {
       const ops = [...(p.exercises || []).map(x => [ref('exercises', x.id), exDoc(x)]), ...(p.entries || []).map(e => [ref('entries', e.id), entryDoc(e)])];
-      if (p.muscles) ops.push([ref('meta', 'muscles'), { map: p.muscles }]);
+      if (p.muscles) ops.push([ref('meta', 'muscles'), metaDoc(p.muscles)]);
       for (let i = 0; i < ops.length; i += 450) {
         const b = F.writeBatch(db);
         ops.slice(i, i + 450).forEach(([r, d]) => b.set(r, d));

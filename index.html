@@ -95,8 +95,8 @@ nav button.on{color:var(--acc)}
 <script>
 {
 // ---------- Reference data (approved catalog) ----------
-const GROUPS=['Chest','Back','Traps','Lower back','Shoulders','Rotator cuff','Neck','Biceps','Triceps','Forearms','Quads','Hamstrings','Glutes','Adductors','Calves','Abs','Obliques','Hip flexors'];
-const MUSCLES={'pectoralis major':'Chest','upper pectoralis':'Chest','lower pectoralis':'Chest','latissimus dorsi':'Back','rhomboids':'Back','trapezius':'Traps','erector spinae':'Lower back','front deltoid':'Shoulders','lateral deltoid':'Shoulders','rear deltoid':'Shoulders','rotator cuff':'Rotator cuff','neck':'Neck','biceps':'Biceps','brachialis':'Biceps','triceps':'Triceps','forearms':'Forearms','forearm flexors':'Forearms','forearm extensors':'Forearms','quadriceps':'Quads','hamstrings':'Hamstrings','glutes':'Glutes','gluteus medius':'Glutes','adductors':'Adductors','calves':'Calves','soleus':'Calves','abs':'Abs','lower abs':'Abs','transverse abdominis':'Abs','obliques':'Obliques','hip flexors':'Hip flexors'};
+const GROUPS=['Chest','Back','Traps','Lower back','Shoulders','Biceps','Triceps','Forearms','Quads','Hamstrings','Glutes','Adductors','Calves','Abs','Obliques'];
+const MUSCLES={'pectoralis major':'Chest','upper pectoralis':'Chest','lower pectoralis':'Chest','latissimus dorsi':'Back','rhomboids':'Back','trapezius':'Traps','erector spinae':'Lower back','front deltoid':'Shoulders','lateral deltoid':'Shoulders','rear deltoid':'Shoulders','rotator cuff':'Shoulders','biceps':'Biceps','brachialis':'Biceps','triceps':'Triceps','forearms':'Forearms','forearm flexors':'Forearms','forearm extensors':'Forearms','quadriceps':'Quads','hamstrings':'Hamstrings','glutes':'Glutes','gluteus medius':'Glutes','adductors':'Adductors','calves':'Calves','soleus':'Calves','abs':'Abs','lower abs':'Abs','transverse abdominis':'Abs','obliques':'Obliques','hip flexors':'Abs'};
 const FD='front deltoid',PM='pectoralis major',UP='upper pectoralis',LP='lower pectoralis',LAT='latissimus dorsi',ROW='rhomboids|trapezius|rear deltoid|biceps';
 const CAT=[
 ['Bench press barbell horizontal','Barbell',PM,FD+'|triceps'],['Bench press barbell incline','Barbell',UP,FD+'|triceps'],['Bench press barbell decline','Barbell',LP,FD+'|triceps'],
@@ -125,25 +125,46 @@ const CAT=[
 ['Glute kickback machine','Machine','glutes','hamstrings'],['Hip thrust machine','Machine','glutes','hamstrings'],['Cable pull-through','Cable','glutes','hamstrings|erector spinae'],['Calf raises','Machine','calves',''],['Seated calf raise machine','Machine','soleus',''],
 ['Abs crunch machine','Machine','abs','obliques'],['Sit-up','Bodyweight','abs','obliques|hip flexors'],['Decline sit-ups','Bench','abs','obliques|hip flexors'],['GHD sit up','GHD','abs','hip flexors|quadriceps'],['V-ups','Bodyweight','abs','obliques|hip flexors'],['Crunches dumbbell','Dumbbell','abs','obliques'],
 ['Hanging leg raise','Bodyweight','lower abs','obliques|hip flexors|forearms'],['Lying leg raise','Bodyweight','lower abs','obliques|hip flexors'],['Roman chair leg raise','Roman chair','lower abs','obliques|hip flexors'],['Roman chair lateral leg raise','Roman chair','obliques','lower abs|hip flexors'],
-['Russian twist','Bodyweight','obliques','abs|transverse abdominis|hip flexors'],['Cable twist','Cable','obliques','abs'],['Side bend','Dumbbell','obliques','erector spinae'],['Rotary torso machine','Machine','obliques','abs']
+['Russian twist','Bodyweight','obliques','abs|transverse abdominis|hip flexors'],['Cable twist','Cable','obliques','abs'],['Side bend','Dumbbell','obliques','erector spinae'],['Rotary torso machine','Machine','obliques','abs'],
+// ---- Catalog v2 additions (keep order: ids are positional) ----
+['Barbell shrug','Barbell','trapezius','forearms'],['Smith machine shrug','Smith machine','trapezius','forearms'],['Cable shrug','Cable','trapezius','forearms'],['Farmer\'s walk','Dumbbell','trapezius','forearms|abs'],
+['Good morning','Barbell','erector spinae','hamstrings|glutes'],['Superman','Bodyweight','erector spinae','glutes'],
+['Cable external rotation','Cable','rotator cuff','rear deltoid'],['Side-lying external rotation','Dumbbell','rotator cuff','rear deltoid'],
+['Barbell wrist curl','Barbell','forearm flexors',''],['Reverse curl','Barbell','forearm extensors','brachialis|biceps'],['Dead hang','Bodyweight','forearms',LAT],
+['Romanian deadlift dumbbell','Dumbbell','hamstrings','glutes|erector spinae'],['Single-leg Romanian deadlift','Dumbbell','hamstrings','glutes'],
+['Cable hip adduction','Cable','adductors',''],
+['Leg press calf raise','Machine','calves',''],['Smith machine calf raise','Smith machine','calves',''],['Single-leg calf raise','Dumbbell','calves',''],
+['Pallof press','Cable','obliques','abs|transverse abdominis'],['Side plank','Bodyweight','obliques','abs']
 ];
+const CAT_VERSION=2,CAT_V2_START=118;
 
 // ---------- State & storage ----------
 const LOCAL_KEY='gymtracker.v1';
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
-const fresh=()=>({v:1,muscles:{...MUSCLES},exercises:CAT.map(([name,eq,main,sec],i)=>({id:'c'+i,name,eq,main,sec:sec?sec.split('|'):[]})),entries:[]});
+const fresh=()=>({v:1,catVer:CAT_VERSION,muscles:{...MUSCLES},exercises:CAT.map(([name,eq,main,sec],i)=>({id:'c'+i,name,eq,main,sec:sec?sec.split('|'):[]})),entries:[]});
 function valid(s){return s&&typeof s==='object'&&Array.isArray(s.exercises)&&Array.isArray(s.entries)&&s.muscles&&typeof s.muscles==='object'}
 const emptyS=()=>({v:1,muscles:{...MUSCLES},exercises:[],entries:[]});
 const lsGet=(k,d)=>{try{const r=localStorage.getItem(k);return r?JSON.parse(r):d}catch(e){return d}};
 const lsSet=(k,v)=>{try{v==null?localStorage.removeItem(k):localStorage.setItem(k,JSON.stringify(v));return true}catch(e){return false}};
 function loadKey(k,fb){const s=lsGet(k,null);return valid(s)?s:fb()}
-window.GymDefaults=()=>{const f=fresh();return{muscles:f.muscles,exercises:f.exercises}};
+window.GymDefaults=()=>{const f=fresh();return{muscles:f.muscles,exercises:f.exercises,catVer:CAT_VERSION}};
+// Bring older data up to the current default catalog: new exercises are added once; deleted/renamed ones are not re-added
+function upgradeCatalog(st){const res={newEx:[],changed:false};
+  const remap={'rotator cuff':'Shoulders','hip flexors':'Abs'};
+  for(const[m,g]of Object.entries(remap))if(st.muscles[m]!==g&&(!st.muscles[m]||['Rotator cuff','Hip flexors'].includes(st.muscles[m]))){st.muscles[m]=g;res.changed=true}
+  if(st.muscles.neck==='Neck'&&!st.exercises.some(e=>e.main==='neck'||e.sec.includes('neck'))){delete st.muscles.neck;res.changed=true}
+  if((st.catVer||1)>=CAT_VERSION)return res;
+  for(const[m,g]of Object.entries(MUSCLES))if(!st.muscles[m]){st.muscles[m]=g}
+  const f=fresh();
+  for(const x of f.exercises.slice(CAT_V2_START)){if(st.exercises.some(e=>e.id===x.id||e.name.toLowerCase()===x.name.toLowerCase()))continue;st.exercises.push(x);res.newEx.push(x)}
+  st.catVer=CAT_VERSION;res.changed=true;return res}
 // Signed-in user (remembered so the app opens with their data even offline)
 let user=lsGet('gymtracker.lastUser',null),syncState={status:'',error:''};
 const keyFor=()=>user?'gymtracker.u.'+user.uid:LOCAL_KEY;
 let S=user?loadKey(keyFor(),emptyS):loadKey(LOCAL_KEY,fresh);
+if(!user&&upgradeCatalog(S).changed)lsSet(LOCAL_KEY,S);
 function save(){if(lsSet(keyFor(),S))return true;toast('⚠ Could not save on this device');return false}
 // Outbox: changes waiting to be handed to the sync layer (kept across restarts)
 let outbox=lsGet('gymtracker.outbox',[]);
@@ -336,7 +357,7 @@ function editExercise(id){
     drawMain();drawSec();
     el.querySelector('#xm').onchange=e=>{d.main=e.target.value;d.sec=d.sec.filter(m=>m!==d.main);drawSec()};
     el.querySelector('#xs').onclick=e=>{const b=e.target.closest('[data-m]');if(!b)return;const m=b.dataset.m;d.sec=d.sec.includes(m)?d.sec.filter(x=>x!==m):[...d.sec,m];drawSec()};
-    el.querySelector('#nmadd').onclick=()=>{const m=el.querySelector('#nm').value.trim().toLowerCase();if(!m){toast('Type a muscle name');return}if(S.muscles[m]){toast('That muscle already exists');return}S.muscles[m]=el.querySelector('#ng').value;op('putMuscles',S.muscles);save();el.querySelector('#nm').value='';drawMain();drawSec();toast('Muscle added')};
+    el.querySelector('#nmadd').onclick=()=>{const m=el.querySelector('#nm').value.trim().toLowerCase();if(!m){toast('Type a muscle name');return}if(S.muscles[m]){toast('That muscle already exists');return}S.muscles[m]=el.querySelector('#ng').value;op('putMuscles',{map:S.muscles,catVer:S.catVer||1});save();el.querySelector('#nm').value='';drawMain();drawSec();toast('Muscle added')};
     el.querySelector('#xcancel').onclick=closeSheet;
     el.querySelector('#xsave').onclick=()=>{const name=el.querySelector('#xn').value.trim(),eq=el.querySelector('#xe').value.trim()||'Other';
       if(!name){toast('Name is required');return}if(!d.main){toast('Choose the main muscle');return}
@@ -406,6 +427,7 @@ function mergeData(src){
   const okSet=s=>Array.isArray(s)&&s.length===2&&s.every(n=>typeof n==='number'&&isFinite(n));
   let musclesChanged=false;
   for(const[m,g]of Object.entries(src.muscles||{}))if(typeof g==='string'&&!S.muscles[m]){S.muscles[m]=g;musclesChanged=true}
+  if(upgradeCatalog({muscles:S.muscles,exercises:S.exercises,catVer:CAT_VERSION}).changed)musclesChanged=true;
   const idMap={},newEx=[],newEn=[];
   for(const x of src.exercises||[]){if(!x||!x.id||!x.name)continue;
     if(exById(x.id)){idMap[x.id]=x.id;continue}
@@ -414,21 +436,25 @@ function mergeData(src){
     const nx={id:x.id,name:String(x.name),eq:String(x.eq||'Other'),main:String(x.main||''),sec:Array.isArray(x.sec)?x.sec.map(String):[]};S.exercises.push(nx);newEx.push(nx);idMap[x.id]=x.id}
   for(const e of src.entries||[]){if(!e||!e.id||!idMap[e.ex]||!/^\d{4}-\d\d-\d\d$/.test(e.date))continue;const sets=(e.sets||[]).filter(okSet);if(!sets.length)continue;
     const ne={id:e.id,ex:idMap[e.ex],date:e.date,ts:+e.ts||Date.now(),sets};const i=S.entries.findIndex(x=>x.id===e.id);if(i>=0)S.entries[i]=ne;else S.entries.push(ne);newEn.push(ne)}
-  save();op('bulk',{exercises:newEx,entries:newEn,muscles:musclesChanged?S.muscles:null});
+  save();op('bulk',{exercises:newEx,entries:newEn,muscles:musclesChanged?{map:S.muscles,catVer:S.catVer||1}:null});
   return{entries:newEn.length,exercises:newEx.length}}
 async function maybeOfferCopy(){if(!user)return;const k='gymtracker.copyAsked.'+user.uid;if(lsGet(k,false))return;lsSet(k,true);
   const local=loadKey(LOCAL_KEY,()=>null);if(!local||!local.entries.length)return;
   if(await ask(`Copy the ${local.entries.length} ${local.entries.length===1?'workout':'workouts'} saved on this device (without sign-in) into your account?`,'Copy',false)){const r=mergeData(local);scheduleRender();toast(`Copied ${r.entries} ${r.entries===1?'entry':'entries'}`)}}
+const upgrading={};
 addEventListener('gymsync',ev=>{const d=ev.detail,G=window.GymSync;
   if(d.kind==='user'){const u=G.user;
     if(u&&(!user||user.uid!==u.uid)){user=u;lsSet('gymtracker.lastUser',u);S=loadKey(keyFor(),emptyS);L.ex=null;H.ex=null;syncState={status:'syncing',error:''};scheduleRender()}
     else if(u){user=u;lsSet('gymtracker.lastUser',u)}
-    else if(!u&&user){user=null;lsSet('gymtracker.lastUser',null);S=loadKey(LOCAL_KEY,fresh);L.ex=null;H.ex=null;scheduleRender()}
+    else if(!u&&user){user=null;lsSet('gymtracker.lastUser',null);S=loadKey(LOCAL_KEY,fresh);if(upgradeCatalog(S).changed)save();L.ex=null;H.ex=null;scheduleRender()}
     if(u)flush()}
   else if(d.kind==='data'){if(!user)return;
     // Offline with an empty device cache: keep what this device already shows instead of blanking it.
     if(d.fromCache&&!d.data.exercises.length&&S.exercises.length)return;
-    S={v:1,muscles:{...MUSCLES,...d.data.muscles},exercises:d.data.exercises,entries:d.data.entries};save();scheduleRender();maybeOfferCopy()}
+    S={v:1,catVer:d.data.catVer||1,muscles:{...d.data.muscles},exercises:d.data.exercises,entries:d.data.entries};
+    if(!Object.keys(S.muscles).length)S.muscles={...MUSCLES};
+    if(!d.fromCache&&S.exercises.length&&!upgrading[user.uid]){const up=upgradeCatalog(S);if(up.changed){upgrading[user.uid]=true;op('bulk',{exercises:up.newEx,entries:[],muscles:{map:S.muscles,catVer:S.catVer}});if(up.newEx.length)toast(`Added ${up.newEx.length} new exercises to your list`)}}
+    save();scheduleRender();maybeOfferCopy()}
   else if(d.kind==='status'){syncState={status:d.status,error:d.error||''};renderAcct();if(current==='data')scheduleRender()}
   else if(d.kind==='ready'){if(G&&G.available===false&&user){/* sync could not load: keep showing cached account data */}flush();scheduleRender()}});
 $('#view').addEventListener('focusout',()=>{if(pendingRender)setTimeout(()=>{if(pendingRender)scheduleRender()},50)});

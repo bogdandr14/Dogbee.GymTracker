@@ -1,5 +1,5 @@
 // Offline cache. Bump VERSION when the app files change.
-const VERSION = 'gym-tracker-v4';
+const VERSION = 'gym-tracker-v5';
 const FILES = ['./', 'index.html', 'manifest.webmanifest', 'firebase-config.js', 'sync.js', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'];
 const SDK = 'https://www.gstatic.com/firebasejs/';
 self.addEventListener('install', e => {
