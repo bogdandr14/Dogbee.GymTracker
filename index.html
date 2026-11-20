@@ -73,11 +73,15 @@ nav button.on{color:var(--acc)}
 #toast{position:fixed;left:50%;bottom:calc(92px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--ink);color:#111;padding:12px 18px;border-radius:14px;font-weight:700;z-index:20;opacity:0;transition:opacity .2s;pointer-events:none;max-width:90vw;text-align:center}
 #toast.show{opacity:1}
 .grp-h{font-size:13px;font-weight:700;color:var(--mute);margin:14px 0 4px;text-transform:none}
+[hidden]{display:none!important}
+.acct{margin-left:auto;min-height:44px;border-radius:22px;padding:0 14px;font-size:14px;display:flex;align-items:center;gap:8px}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--mute);flex:none}
+.dot.synced{background:var(--ok)}.dot.syncing{background:#f5c542}.dot.offline{background:var(--acc)}.dot.error{background:var(--bad)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
 <body>
-<header><h1 id="title">Log</h1></header>
+<header><h1 id="title">Log</h1><button id="acct" class="acct" hidden></button></header>
 <main id="view"></main>
 <nav id="nav">
   <button data-nav="log" class="on"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Log</button>
@@ -87,6 +91,7 @@ nav button.on{color:var(--acc)}
   <button data-nav="data"><svg viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M4 21h16"/></svg>Data</button>
 </nav>
 <div id="toast"></div>
+<script src="firebase-config.js"></script>
 <script>
 {
 // ---------- Reference data (approved catalog) ----------
@@ -124,15 +129,28 @@ const CAT=[
 ];
 
 // ---------- State & storage ----------
-const KEY='gymtracker.v1';
+const LOCAL_KEY='gymtracker.v1';
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 const fresh=()=>({v:1,muscles:{...MUSCLES},exercises:CAT.map(([name,eq,main,sec],i)=>({id:'c'+i,name,eq,main,sec:sec?sec.split('|'):[]})),entries:[]});
 function valid(s){return s&&typeof s==='object'&&Array.isArray(s.exercises)&&Array.isArray(s.entries)&&s.muscles&&typeof s.muscles==='object'}
-function load(){try{const r=localStorage.getItem(KEY);if(r){const s=JSON.parse(r);if(valid(s))return s}}catch(e){}return fresh()}
-let S=load();
-function save(){try{localStorage.setItem(KEY,JSON.stringify(S));return true}catch(e){toast('⚠ Could not save on this device');return false}}
+const emptyS=()=>({v:1,muscles:{...MUSCLES},exercises:[],entries:[]});
+const lsGet=(k,d)=>{try{const r=localStorage.getItem(k);return r?JSON.parse(r):d}catch(e){return d}};
+const lsSet=(k,v)=>{try{v==null?localStorage.removeItem(k):localStorage.setItem(k,JSON.stringify(v));return true}catch(e){return false}};
+function loadKey(k,fb){const s=lsGet(k,null);return valid(s)?s:fb()}
+window.GymDefaults=()=>{const f=fresh();return{muscles:f.muscles,exercises:f.exercises}};
+// Signed-in user (remembered so the app opens with their data even offline)
+let user=lsGet('gymtracker.lastUser',null),syncState={status:'',error:''};
+const keyFor=()=>user?'gymtracker.u.'+user.uid:LOCAL_KEY;
+let S=user?loadKey(keyFor(),emptyS):loadKey(LOCAL_KEY,fresh);
+function save(){if(lsSet(keyFor(),S))return true;toast('⚠ Could not save on this device');return false}
+// Outbox: changes waiting to be handed to the sync layer (kept across restarts)
+let outbox=lsGet('gymtracker.outbox',[]);
+function op(type,payload){if(!user)return;outbox.push({uid:user.uid,type,payload});lsSet('gymtracker.outbox',outbox);flush()}
+function flush(){const G=window.GymSync;if(!G||!G.user||!outbox.length)return;const keep=[];
+  for(const o of outbox){if(o.uid!==G.user.uid){keep.push(o);continue}try{G.apply(o.type,o.payload)}catch(e){keep.push(o)}}
+  outbox=keep;lsSet('gymtracker.outbox',outbox)}
 try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
 
 // ---------- Helpers ----------
@@ -146,6 +164,13 @@ const fmtSet=s=>fmtW(s[0])+' × '+s[1];
 const cmpSet=(a,b)=>(a[0]-b[0])||(a[1]-b[1]);
 const exById=id=>S.exercises.find(e=>e.id===id);
 const groupOf=m=>S.muscles[m]||'Other';
+// Equipment filter categories: small types are grouped, exercises keep their exact equipment
+const EQ_MAIN=['Machine','Cable','Barbell','Dumbbell','Bodyweight'];
+const EQ_MAP={'smith machine':'Machine','ez bar':'Barbell','ez-bar':'Barbell','trx':'Bodyweight','roman chair':'Bodyweight','bench':'Bodyweight','ghd':'Bodyweight'};
+const eqCat=eq=>{const l=String(eq||'').trim().toLowerCase();return EQ_MAP[l]||EQ_MAIN.find(x=>x.toLowerCase()===l)||cap(String(eq||'Other').trim()||'Other')};
+const eqCats=xs=>{const set=new Set(xs.map(e=>eqCat(e.eq)));return[...EQ_MAIN.filter(x=>set.has(x)),...[...set].filter(x=>!EQ_MAIN.includes(x)).sort()]};
+const eqChips=(sel,attr)=>['',...eqCats(S.exercises)].map(x=>`<button class="chip ${x===sel?'on':''}" ${attr}="${esc(x)}">${esc(x||'All equipment')}</button>`).join('');
+function centerChip(row){const on=row&&row.querySelector('.chip.on');if(on)row.scrollLeft=on.offsetLeft-row.clientWidth/2+on.clientWidth/2}
 const groupsAll=()=>[...GROUPS,...new Set(Object.values(S.muscles).filter(g=>!GROUPS.includes(g)))];
 const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
 const entriesOf=id=>S.entries.filter(e=>e.ex===id).sort((a,b)=>b.date.localeCompare(a.date)||b.ts-a.ts);
@@ -157,18 +182,20 @@ function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');cl
 // ---------- Sheets & dialogs ----------
 const stack=[];
 function openSheet(html,mount){const bg=document.createElement('div');bg.className='sheet-bg';bg.innerHTML='<div class="sheet" role="dialog" aria-modal="true">'+html+'</div>';bg.addEventListener('click',e=>{if(e.target===bg)closeSheet()});document.body.appendChild(bg);stack.push(bg);document.body.style.overflow='hidden';mount&&mount(bg.firstChild);return bg.firstChild}
-function closeSheet(){const bg=stack.pop();bg&&bg.remove();if(!stack.length)document.body.style.overflow=''}
+let pendingRender=false;
+function closeSheet(){const bg=stack.pop();bg&&bg.remove();if(!stack.length){document.body.style.overflow='';if(pendingRender)setTimeout(render)}}
+function scheduleRender(){const a=document.activeElement;if(stack.length||(a&&a.matches&&a.matches('input,select')&&$('#view').contains(a))){pendingRender=true;return}render()}
 function ask(msg,ok='Delete',danger=true){return new Promise(res=>{openSheet(`<h3>${esc(msg)}</h3><div class="btns"><button data-x="n">Cancel</button><button data-x="y" class="${danger?'pri':'pri'}">${esc(ok)}</button></div>`,el=>{el.querySelector('[data-x=n]').onclick=()=>{closeSheet();res(false)};el.querySelector('[data-x=y]').onclick=()=>{closeSheet();res(true)}})})}
 
 // Exercise picker
 function pickExercise(cb){
-  let q='',g='';
-  openSheet(`<h3>Choose exercise</h3><input id="pq" type="search" placeholder="Search exercises" autocomplete="off"><div class="chips" id="pg"></div><div class="list" id="pl"></div>`,el=>{
+  let q='',g='',eqf='';
+  openSheet(`<h3>Choose exercise</h3><input id="pq" type="search" placeholder="Search exercises" autocomplete="off"><div class="chips" id="pg"></div><div class="chips" id="pe" style="padding-top:0"></div><div class="list" id="pl"></div>`,el=>{
     const gs=groupsAll().filter(x=>S.exercises.some(e=>groupOf(e.main)===x));
-    const chips=()=>{el.querySelector('#pg').innerHTML=['',...gs].map(x=>`<button class="chip ${x===g?'on':''}" data-g="${esc(x)}">${esc(x||'All')}</button>`).join('')};
+    const chips=()=>{el.querySelector('#pg').innerHTML=['',...gs].map(x=>`<button class="chip ${x===g?'on':''}" data-g="${esc(x)}">${esc(x||'All muscles')}</button>`).join('');el.querySelector('#pe').innerHTML=eqChips(eqf,'data-pe')};
     const list=()=>{
       const words=q.toLowerCase().split(/\s+/).filter(Boolean);
-      let xs=S.exercises.filter(e=>(!g||groupOf(e.main)===g)&&words.every(w=>(e.name+' '+e.eq+' '+e.main).toLowerCase().includes(w)));
+      let xs=S.exercises.filter(e=>(!g||groupOf(e.main)===g)&&(!eqf||eqCat(e.eq)===eqf)&&words.every(w=>(e.name+' '+e.eq+' '+e.main).toLowerCase().includes(w)));
       const last=new Map(xs.map(e=>[e.id,lastOf(e.id)]));
       xs.sort((a,b)=>{const la=last.get(a.id),lb=last.get(b.id);if(la&&lb)return lb.date.localeCompare(la.date)||lb.ts-la.ts;if(la||lb)return la?-1:1;return a.name.localeCompare(b.name)});
       el.querySelector('#pl').innerHTML=xs.length?xs.map(e=>{const l=last.get(e.id);return `<div class="item" data-pick="${e.id}"><div class="txt"><b>${esc(e.name)}</b><small>${esc(cap(e.main))} · ${esc(e.eq)}</small></div><div class="side"><small>${l?(daysSince(l.date)===0?'today':daysSince(l.date)+'d ago'):''}</small></div></div>`}).join(''):'<div class="empty">No exercise found. Add it in the Exercises tab.</div>';
@@ -176,6 +203,7 @@ function pickExercise(cb){
     chips();list();
     el.querySelector('#pq').oninput=e=>{q=e.target.value;list()};
     el.querySelector('#pg').onclick=e=>{const b=e.target.closest('[data-g]');if(b){g=b.dataset.g;chips();list()}};
+    el.querySelector('#pe').onclick=e=>{const b=e.target.closest('[data-pe]');if(b){eqf=b.dataset.pe;chips();list()}};
     el.querySelector('#pl').onclick=e=>{const it=e.target.closest('[data-pick]');if(it){closeSheet();cb(it.dataset.pick)}};
   });
 }
@@ -206,9 +234,9 @@ function editEntry(id){
     el.querySelector('#ee').onclick=()=>pickExercise(x=>{d.ex=x;showEx()});
     setsEditor(el.querySelector('#es'),d.sets);
     el.querySelector('#ecancel').onclick=closeSheet;
-    el.querySelector('#edel').onclick=async()=>{if(await ask('Delete this entry?')){S.entries=S.entries.filter(e=>e.id!==id);save();closeSheet();render();toast('Entry deleted')}};
+    el.querySelector('#edel').onclick=async()=>{if(await ask('Delete this entry?')){S.entries=S.entries.filter(e=>e.id!==id);op('delEntry',id);save();closeSheet();render();toast('Entry deleted')}};
     el.querySelector('#esave').onclick=()=>{const sets=cleanSets(d.sets);if(!sets.length){toast('Enter reps for at least one set');return}
-      const dt=el.querySelector('#ed').value||en.date;prCheck(d.ex,id,sets);Object.assign(en,{date:dt,ex:d.ex,sets});save();closeSheet();render()};
+      const dt=el.querySelector('#ed').value||en.date;prCheck(d.ex,id,sets);let cur=S.entries.find(e=>e.id===id);if(!cur){cur={...en};S.entries.push(cur)}Object.assign(cur,{date:dt,ex:d.ex,sets});op('putEntry',cur);save();closeSheet();render()};
   });
 }
 const entryRow=(e,showName=true)=>`<div class="item"><div class="txt" data-edit="${e.id}"><b>${esc(showName?(exById(e.ex)?.name||'Deleted exercise'):fmtDate(e.date))}</b><small>${e.sets.map(fmtSet).join(' · ')}</small></div><button data-edit="${e.id}" aria-label="Edit">Edit</button></div>`;
@@ -216,8 +244,8 @@ const entryRow=(e,showName=true)=>`<div class="item"><div class="txt" data-edit=
 // ---------- Views ----------
 const L={date:today(),ex:null,sets:[[0,10]]};
 const H={ex:null};
-const M={group:'Chest',muscle:'',sec:false};
-let XQ='';
+const M={group:'Chest',muscle:'',sec:false,eq:'',never:false};
+let XQ='',XE='';
 let current='log';
 
 function viewLog(v){
@@ -235,7 +263,7 @@ function viewLog(v){
   v.querySelector('#lex').onclick=()=>pickExercise(id=>{L.ex=id;const l=lastOf(id);L.sets=l?[l.sets[0].slice()]:[[0,10]];render()});
   if(ex){setsEditor(v.querySelector('#lsets'),L.sets);
     v.querySelector('#lsave').onclick=()=>{const sets=cleanSets(L.sets);if(!sets.length){toast('Enter reps for at least one set');return}
-      prCheck(ex.id,null,sets);S.entries.push({id:uid(),ex:ex.id,date:L.date,ts:Date.now(),sets});if(save()){if(!$('#toast').classList.contains('show'))toast('Saved');L.ex=null;L.sets=[[0,10]];render()}}}
+      prCheck(ex.id,null,sets);const ne={id:uid(),ex:ex.id,date:L.date,ts:Date.now(),sets};S.entries.push(ne);op('putEntry',ne);if(save()){if(!$('#toast').classList.contains('show'))toast('Saved');L.ex=null;L.sets=[[0,10]];render()}}}
 }
 
 function chart(box,entries){
@@ -274,20 +302,24 @@ function viewMuscles(v){
   const gs=groupsAll();
   const ms=Object.keys(S.muscles).filter(m=>S.muscles[m]===M.group).sort();
   if(M.muscle&&!ms.includes(M.muscle))M.muscle='';
-  const match=e=>M.muscle?(e.main===M.muscle||(M.sec&&e.sec.includes(M.muscle))):(groupOf(e.main)===M.group||(M.sec&&e.sec.some(m=>groupOf(m)===M.group)));
+  const match=e=>(!M.eq||eqCat(e.eq)===M.eq)&&(M.muscle?(e.main===M.muscle||(M.sec&&e.sec.includes(M.muscle))):(groupOf(e.main)===M.group||(M.sec&&e.sec.some(m=>groupOf(m)===M.group))));
   const xs=sortByName(S.exercises.filter(match));
-  const done=xs.map(e=>({e,l:lastOf(e.id)})).filter(o=>o.l).sort((a,b)=>daysSince(b.l.date)-daysSince(a.l.date)||a.e.name.localeCompare(b.e.name));
+  const done=xs.map(e=>({e,l:lastOf(e.id)})).filter(o=>o.l||M.never).sort((a,b)=>(!a.l||!b.l)?((a.l?1:0)-(b.l?1:0)||a.e.name.localeCompare(b.e.name)):(daysSince(b.l.date)-daysSince(a.l.date)||a.e.name.localeCompare(b.e.name)));
   v.innerHTML=`<label>Muscle group</label><div class="chips">${gs.map(g=>`<button class="chip ${g===M.group?'on':''}" data-mg="${esc(g)}">${esc(g)}</button>`).join('')}</div>
   ${ms.length>1?`<label for="mm">Specific muscle</label><select id="mm"><option value="">All of ${esc(M.group)}</option>${ms.map(m=>`<option ${m===M.muscle?'selected':''} value="${esc(m)}">${esc(cap(m))}</option>`).join('')}</select>`:''}
+  <label>Equipment</label><div class="chips" id="meq">${eqChips(M.eq,'data-meq')}</div>
   <label class="toggle"><span>Include exercises where it's a secondary muscle</span><input type="checkbox" id="msec" ${M.sec?'checked':''}></label>
-  <h2>Not done recently</h2><small>Longest since last done first. Exercises never done are left out.</small>
-  <div class="list" style="margin-top:8px">${done.map(({e,l})=>{const d=daysSince(l.date);return `<div class="item"><div class="txt" data-hist="${e.id}"><b>${esc(e.name)}</b><small>${esc(e.eq)} · last ${l.sets.map(fmtSet).join(', ')}</small></div><div class="side"><div class="days">${d}</div><small>${d===1?'day':'days'} ago</small></div></div>`}).join('')||'<div class="empty">None of these exercises have been logged yet.</div>'}</div>
+  <h2>Not done recently</h2><small>Longest since last done first.${M.never?' Never-done exercises are at the top.':''}</small>
+  <label class="toggle"><span>Also show exercises never done</span><input type="checkbox" id="mnever" ${M.never?'checked':''}></label>
+  <div class="list" style="margin-top:8px">${done.map(({e,l})=>{if(!l)return `<div class="item"><div class="txt" data-hist="${e.id}"><b>${esc(e.name)}</b><small>${esc(e.eq)} · not logged yet</small></div><div class="side"><div class="days mute" style="color:var(--mute)">Never</div></div></div>`;const d=daysSince(l.date);return `<div class="item"><div class="txt" data-hist="${e.id}"><b>${esc(e.name)}</b><small>${esc(e.eq)} · last ${l.sets.map(fmtSet).join(', ')}</small></div><div class="side"><div class="days">${d}</div><small>${d===1?'day':'days'} ago</small></div></div>`}).join('')||`<div class="empty">${M.never?'No exercises for this muscle and equipment.':'None of these exercises have been logged yet.'}</div>`}</div>
   <h2>Personal records</h2>
-  <div class="list">${xs.map(e=>{const p=prOf(e.id);return `<div class="item"><div class="txt" data-hist="${e.id}"><b>${esc(e.name)}</b><small>${esc(cap(e.main))}${p?' · '+fmtDate(p.date):''}</small></div><div class="side ${p?'pr':'mute'}">${p?fmtSet(p.set):'—'}</div></div>`}).join('')||'<div class="empty">No exercises for this muscle.</div>'}</div>`;
+  <div class="list">${xs.map(e=>{const p=prOf(e.id);return `<div class="item"><div class="txt" data-hist="${e.id}"><b>${esc(e.name)}</b><small>${esc(cap(e.main))}${p?' · '+fmtDate(p.date):''}</small></div><div class="side ${p?'pr':'mute'}">${p?fmtSet(p.set):'—'}</div></div>`}).join('')||'<div class="empty">No exercises for this muscle and equipment.</div>'}</div>`;
   v.querySelector('.chips').onclick=e=>{const b=e.target.closest('[data-mg]');if(b){M.group=b.dataset.mg;M.muscle='';render()}};
-  const on=v.querySelector('.chips .chip.on');if(on){const c=on.parentNode;c.scrollLeft=on.offsetLeft-c.clientWidth/2+on.clientWidth/2}
+  v.querySelector('#meq').onclick=e=>{const b=e.target.closest('[data-meq]');if(b){M.eq=b.dataset.meq;render()}};
+  centerChip(v.querySelector('.chips'));centerChip(v.querySelector('#meq'));
   const mm=v.querySelector('#mm');if(mm)mm.onchange=e=>{M.muscle=e.target.value;render()};
   v.querySelector('#msec').onchange=e=>{M.sec=e.target.checked;render()};
+  v.querySelector('#mnever').onchange=e=>{M.never=e.target.checked;render()};
 }
 
 function editExercise(id){
@@ -304,25 +336,26 @@ function editExercise(id){
     drawMain();drawSec();
     el.querySelector('#xm').onchange=e=>{d.main=e.target.value;d.sec=d.sec.filter(m=>m!==d.main);drawSec()};
     el.querySelector('#xs').onclick=e=>{const b=e.target.closest('[data-m]');if(!b)return;const m=b.dataset.m;d.sec=d.sec.includes(m)?d.sec.filter(x=>x!==m):[...d.sec,m];drawSec()};
-    el.querySelector('#nmadd').onclick=()=>{const m=el.querySelector('#nm').value.trim().toLowerCase();if(!m){toast('Type a muscle name');return}if(S.muscles[m]){toast('That muscle already exists');return}S.muscles[m]=el.querySelector('#ng').value;save();el.querySelector('#nm').value='';drawMain();drawSec();toast('Muscle added')};
+    el.querySelector('#nmadd').onclick=()=>{const m=el.querySelector('#nm').value.trim().toLowerCase();if(!m){toast('Type a muscle name');return}if(S.muscles[m]){toast('That muscle already exists');return}S.muscles[m]=el.querySelector('#ng').value;op('putMuscles',S.muscles);save();el.querySelector('#nm').value='';drawMain();drawSec();toast('Muscle added')};
     el.querySelector('#xcancel').onclick=closeSheet;
     el.querySelector('#xsave').onclick=()=>{const name=el.querySelector('#xn').value.trim(),eq=el.querySelector('#xe').value.trim()||'Other';
       if(!name){toast('Name is required');return}if(!d.main){toast('Choose the main muscle');return}
       if(S.exercises.some(e=>e.id!==id&&e.name.toLowerCase()===name.toLowerCase())){toast('An exercise with that name exists');return}
-      if(ex)Object.assign(ex,{name,eq,main:d.main,sec:d.sec});else S.exercises.push({id:uid(),name,eq,main:d.main,sec:d.sec});
-      save();closeSheet();render();toast('Exercise saved')};
+      let obj=id&&exById(id);if(obj)Object.assign(obj,{name,eq,main:d.main,sec:d.sec});else{obj={id:id||uid(),name,eq,main:d.main,sec:d.sec};S.exercises.push(obj)}
+      op('putExercise',obj);save();closeSheet();render();toast('Exercise saved')};
     const del=el.querySelector('#xdel');if(del)del.onclick=async()=>{const n=S.entries.filter(e=>e.ex===id).length;
-      if(await ask(n?`Delete "${ex.name}" and its ${n} logged ${n===1?'entry':'entries'}?`:`Delete "${ex.name}"?`)){S.exercises=S.exercises.filter(e=>e.id!==id);S.entries=S.entries.filter(e=>e.ex!==id);if(L.ex===id)L.ex=null;if(H.ex===id)H.ex=null;save();closeSheet();render();toast('Exercise deleted')}};
+      if(await ask(n?`Delete "${ex.name}" and its ${n} logged ${n===1?'entry':'entries'}?`:`Delete "${ex.name}"?`)){op('delExercise',{id,entries:S.entries.filter(e=>e.ex===id).map(e=>e.id)});S.exercises=S.exercises.filter(e=>e.id!==id);S.entries=S.entries.filter(e=>e.ex!==id);if(L.ex===id)L.ex=null;if(H.ex===id)H.ex=null;save();closeSheet();render();toast('Exercise deleted')}};
   });
 }
 
 function viewExercises(v){
   const words=XQ.toLowerCase().split(/\s+/).filter(Boolean);
-  const xs=sortByName(S.exercises.filter(e=>words.every(w=>(e.name+' '+e.eq+' '+e.main+' '+e.sec.join(' ')).toLowerCase().includes(w))));
+  const xs=sortByName(S.exercises.filter(e=>(!XE||eqCat(e.eq)===XE)&&words.every(w=>(e.name+' '+e.eq+' '+e.main+' '+e.sec.join(' ')).toLowerCase().includes(w))));
   const by={};for(const e of xs)(by[groupOf(e.main)]=by[groupOf(e.main)]||[]).push(e);
-  v.innerHTML=`<button class="pri wide" id="xnew">+ New exercise</button><input type="search" id="xq" placeholder="Search ${S.exercises.length} exercises" value="${esc(XQ)}" style="margin-top:12px">
+  v.innerHTML=`<button class="pri wide" id="xnew">+ New exercise</button><input type="search" id="xq" placeholder="Search ${S.exercises.length} exercises" value="${esc(XQ)}" style="margin-top:12px"><div class="chips" id="xeq" style="margin-top:8px">${eqChips(XE,'data-xeq')}</div>
   <div id="xlist">${[...groupsAll(),'Other'].filter(g=>by[g]).map(g=>`<div class="date-h">${esc(g)} (${by[g].length})</div><div class="list">${by[g].map(e=>`<div class="item"><div class="txt" data-ex="${e.id}"><b>${esc(e.name)}</b><small>${esc(cap(e.main))} · ${esc(e.eq)}${e.sec.length?' · '+esc(e.sec.join(', ')):''}</small></div></div>`).join('')}</div>`).join('')||'<div class="empty">No match.</div>'}</div>`;
   v.querySelector('#xnew').onclick=()=>editExercise(null);
+  v.querySelector('#xeq').onclick=e=>{const b=e.target.closest('[data-xeq]');if(b){XE=b.dataset.xeq;render()}};centerChip(v.querySelector('#xeq'));
   const q=v.querySelector('#xq');q.oninput=e=>{XQ=e.target.value;const pos=q.selectionStart;render();const n=$('#xq');n.focus();n.setSelectionRange(pos,pos)};
 }
 
@@ -338,9 +371,10 @@ function viewData(v){
   const sets=S.entries.reduce((n,e)=>n+e.sets.length,0);
   const first=S.entries.reduce((m,e)=>!m||e.date<m?e.date:m,'');
   v.innerHTML=`<div class="card"><div class="row" style="justify-content:space-around;text-align:center"><div><div style="font-size:24px;font-weight:800">${S.entries.length}</div><small>entries</small></div><div><div style="font-size:24px;font-weight:800">${sets}</div><small>sets</small></div><div><div style="font-size:24px;font-weight:800">${S.exercises.length}</div><small>exercises</small></div></div>${first?`<small style="display:block;text-align:center;margin-top:8px">Logging since ${fmtDate(first)}</small>`:''}</div>
-  <h2>Export</h2><small>Your data lives only on this phone. Export regularly as a backup.</small>
+  ${accountCard()}
+  <h2>Export</h2><small>${user?'Your data is saved in your account and on this device.':'Your data lives only on this device. Export regularly as a backup.'}</small>
   <div class="list" style="margin-top:10px"><button class="pri" id="dj">Backup (JSON) – for another phone</button><button id="dc">Log as CSV – opens in Excel</button></div>
-  <h2>Import</h2><small>Load a JSON backup. This replaces everything currently on this device.</small>
+  <h2>Import</h2><small>Load a JSON backup. It is merged into your current data${user?' and synced':''}; nothing is deleted.</small>
   <label class="btn" style="display:flex;align-items:center;justify-content:center;margin-top:10px;color:var(--ink);font-size:17px">Choose backup file…<input type="file" id="di" accept=".json,application/json" hidden></label>
   <h2>Muscle groups</h2><small>${groupsAll().join(' · ')}</small>`;
   const stamp=today();
@@ -349,12 +383,59 @@ function viewData(v){
   v.querySelector('#di').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;
     let obj;try{obj=JSON.parse(await f.text())}catch(err){toast('That file is not a valid backup');return}
     if(!valid(obj)){toast('That file is not a Gym Tracker backup');return}
-    if(await ask(`Replace all data with this backup (${obj.entries.length} entries, ${obj.exercises.length} exercises)?`,'Replace')){const{exportedAt,app,...rest}=obj;S=rest;save();L.ex=null;H.ex=null;render();toast('Backup imported')}};
+    if(await ask(`Merge this backup (${obj.entries.length} entries, ${obj.exercises.length} exercises) into your data?`,'Merge',false)){const r=mergeData(obj);render();toast(`Imported ${r.entries} ${r.entries===1?'entry':'entries'}, ${r.exercises} new ${r.exercises===1?'exercise':'exercises'}`)}};
+  const si=v.querySelector('#signin');if(si)si.onclick=async()=>{si.disabled=true;si.textContent='Opening Google…';try{await window.GymSync.signIn()}catch(e){toast('Sign-in failed: '+(e.code||e.message))}si.disabled=false;render()};
+  const so=v.querySelector('#signout');if(so)so.onclick=async()=>{if(await ask('Sign out on this device? Your data stays in your account.','Sign out')){try{await window.GymSync.signOut()}catch(e){toast('Could not sign out')}}};
 }
+
+// ---------- Account & sync ----------
+const STATUS={synced:'Synced',syncing:'Syncing…',offline:'Offline – will sync later',error:'Sync problem'};
+function accountCard(){const G=window.GymSync;
+  if(!G)return `<div class="card"><b>Sync</b><br><small>Loading…</small></div>`;
+  if(!G.available)return `<div class="card"><b>Sync between devices is off</b><br><small>${G.loadError?'Could not load sign-in (are you offline?).':'Add your Firebase settings to firebase-config.js to turn on Google sign-in (see README).'}</small></div>`;
+  if(!user)return `<div class="card"><b>Use on several devices</b><br><small>Sign in with Google to save your workouts in your account and see them on every device.</small><button class="pri wide" id="signin" style="margin-top:12px">Sign in with Google</button></div>`;
+  return `<div class="card"><small>Signed in as</small><div style="font-weight:700;overflow-wrap:anywhere">${esc(user.email||user.name)}</div>
+    <div class="row" style="margin-top:8px"><span class="dot ${syncState.status}"></span><span>${STATUS[syncState.status]||'Connecting…'}</span></div>
+    ${syncState.error?`<small style="color:var(--bad)">${esc(syncState.error)}${/permission/.test(syncState.error)?' – check the Firestore security rules (README).':''}</small>`:''}
+    <button class="wide" id="signout" style="margin-top:12px">Sign out</button></div>`}
+function renderAcct(){const b=$('#acct'),G=window.GymSync;if(!G||!G.available){b.hidden=true;return}b.hidden=false;
+  b.innerHTML=user?`<span class="dot ${syncState.status}"></span>${esc(syncState.status==='offline'?'Offline':syncState.status==='error'?'Sync problem':syncState.status==='syncing'?'Syncing':'Synced')}`:'Sign in'}
+$('#acct').onclick=()=>go('data');
+// Merge another dataset (backup or this device's local data) into the current one
+function mergeData(src){
+  const okSet=s=>Array.isArray(s)&&s.length===2&&s.every(n=>typeof n==='number'&&isFinite(n));
+  let musclesChanged=false;
+  for(const[m,g]of Object.entries(src.muscles||{}))if(typeof g==='string'&&!S.muscles[m]){S.muscles[m]=g;musclesChanged=true}
+  const idMap={},newEx=[],newEn=[];
+  for(const x of src.exercises||[]){if(!x||!x.id||!x.name)continue;
+    if(exById(x.id)){idMap[x.id]=x.id;continue}
+    const same=S.exercises.find(e=>e.name.toLowerCase()===String(x.name).toLowerCase());
+    if(same){idMap[x.id]=same.id;continue}
+    const nx={id:x.id,name:String(x.name),eq:String(x.eq||'Other'),main:String(x.main||''),sec:Array.isArray(x.sec)?x.sec.map(String):[]};S.exercises.push(nx);newEx.push(nx);idMap[x.id]=x.id}
+  for(const e of src.entries||[]){if(!e||!e.id||!idMap[e.ex]||!/^\d{4}-\d\d-\d\d$/.test(e.date))continue;const sets=(e.sets||[]).filter(okSet);if(!sets.length)continue;
+    const ne={id:e.id,ex:idMap[e.ex],date:e.date,ts:+e.ts||Date.now(),sets};const i=S.entries.findIndex(x=>x.id===e.id);if(i>=0)S.entries[i]=ne;else S.entries.push(ne);newEn.push(ne)}
+  save();op('bulk',{exercises:newEx,entries:newEn,muscles:musclesChanged?S.muscles:null});
+  return{entries:newEn.length,exercises:newEx.length}}
+async function maybeOfferCopy(){if(!user)return;const k='gymtracker.copyAsked.'+user.uid;if(lsGet(k,false))return;lsSet(k,true);
+  const local=loadKey(LOCAL_KEY,()=>null);if(!local||!local.entries.length)return;
+  if(await ask(`Copy the ${local.entries.length} ${local.entries.length===1?'workout':'workouts'} saved on this device (without sign-in) into your account?`,'Copy',false)){const r=mergeData(local);scheduleRender();toast(`Copied ${r.entries} ${r.entries===1?'entry':'entries'}`)}}
+addEventListener('gymsync',ev=>{const d=ev.detail,G=window.GymSync;
+  if(d.kind==='user'){const u=G.user;
+    if(u&&(!user||user.uid!==u.uid)){user=u;lsSet('gymtracker.lastUser',u);S=loadKey(keyFor(),emptyS);L.ex=null;H.ex=null;syncState={status:'syncing',error:''};scheduleRender()}
+    else if(u){user=u;lsSet('gymtracker.lastUser',u)}
+    else if(!u&&user){user=null;lsSet('gymtracker.lastUser',null);S=loadKey(LOCAL_KEY,fresh);L.ex=null;H.ex=null;scheduleRender()}
+    if(u)flush()}
+  else if(d.kind==='data'){if(!user)return;
+    // Offline with an empty device cache: keep what this device already shows instead of blanking it.
+    if(d.fromCache&&!d.data.exercises.length&&S.exercises.length)return;
+    S={v:1,muscles:{...MUSCLES,...d.data.muscles},exercises:d.data.exercises,entries:d.data.entries};save();scheduleRender();maybeOfferCopy()}
+  else if(d.kind==='status'){syncState={status:d.status,error:d.error||''};renderAcct();if(current==='data')scheduleRender()}
+  else if(d.kind==='ready'){if(G&&G.available===false&&user){/* sync could not load: keep showing cached account data */}flush();scheduleRender()}});
+$('#view').addEventListener('focusout',()=>{if(pendingRender)setTimeout(()=>{if(pendingRender)scheduleRender()},50)});
 
 // ---------- Router ----------
 const VIEWS={log:['Log',viewLog],history:['History',viewHistory],muscles:['Muscles',viewMuscles],exercises:['Exercises',viewExercises],data:['Data',viewData]};
-function render(){const[t,f]=VIEWS[current];$('#title').textContent=t;document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.nav===current));f($('#view'))}
+function render(){pendingRender=false;renderAcct();const[t,f]=VIEWS[current];$('#title').textContent=t;document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.nav===current));f($('#view'))}
 function go(n){current=VIEWS[n]?n:'log';if(location.hash!=='#'+current)history.replaceState(null,'','#'+current);while(stack.length)closeSheet();render();scrollTo(0,0)}
 $('#nav').onclick=e=>{const b=e.target.closest('[data-nav]');if(b)go(b.dataset.nav)};
 document.addEventListener('click',e=>{const ed=e.target.closest('[data-edit]');if(ed){editEntry(ed.dataset.edit);return}
@@ -363,8 +444,9 @@ document.addEventListener('click',e=>{const ed=e.target.closest('[data-edit]');i
 addEventListener('hashchange',()=>go(location.hash.slice(1)));
 addEventListener('keydown',e=>{if(e.key==='Escape'&&stack.length)closeSheet()});
 go(location.hash.slice(1)||'log');
-if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js').catch(()=>{});
+if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost'))navigator.serviceWorker.register('sw.js').catch(()=>{});
 }
 </script>
+<script type="module" src="sync.js"></script>
 </body>
 </html>
