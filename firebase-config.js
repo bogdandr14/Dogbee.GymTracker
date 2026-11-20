@@ -3,15 +3,11 @@
 // These values are not secret; your data is protected by the Firestore security rules (see README.md).
 // Leave it as null to use the app without sync.
 
-window.FIREBASE_CONFIG = null;
-
-/* Example – replace null above with your own values, like this:
 window.FIREBASE_CONFIG = {
-  apiKey: "AIza...",
-  authDomain: "your-project.firebaseapp.com",
-  projectId: "your-project",
-  storageBucket: "your-project.firebasestorage.app",
-  messagingSenderId: "1234567890",
-  appId: "1:1234567890:web:abc123"
+  apiKey: "AIzaSyAYMER5ZrjkI6pBZa3_1iuHDufgqSAAUpg",
+  authDomain: "dgb-gym-tracker.firebaseapp.com",
+  projectId: "dgb-gym-tracker",
+  storageBucket: "dgb-gym-tracker.firebasestorage.app",
+  messagingSenderId: "308595881803",
+  appId: "1:308595881803:web:eccf5d16fa2336bd1adace"
 };
-*/
